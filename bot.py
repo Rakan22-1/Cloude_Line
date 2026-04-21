@@ -18,11 +18,11 @@ reaction_channels = set()
 
 GUILD_ID = 935959922317860934
 
-# 🟢 رابط الصورة
+# 🟢 صورة الخط (بدون Embed)
 IMAGE_URL = "https://cdn.discordapp.com/attachments/1495165123789062324/1495898310765056072/Picsart_26-04-19_17-16-50-332.jpg"
 
-# 🟢 منع التكرار (خفيف وصحيح)
-cooldown = set()
+# 🟢 منع التكرار (قفل سريع)
+active_channels = set()
 
 
 # 🟢 الحالة
@@ -57,7 +57,7 @@ async def on_ready():
     client.loop.create_task(update_status())
 
 
-# 🟢 روم بدون رياكشن
+# 🟢 بدون رياكشن
 @client.tree.command(name="setchannel", description="تفعيل الخط بدون رياكشن")
 async def setchannel(interaction: discord.Interaction):
     enabled_channels.add(interaction.channel.id)
@@ -65,7 +65,7 @@ async def setchannel(interaction: discord.Interaction):
     await interaction.response.send_message("✅ تم التفعيل بدون رياكشن")
 
 
-# 🟢 روم مع رياكشن
+# 🟢 مع رياكشن
 @client.tree.command(name="setchannel_reaction", description="تفعيل الخط مع رياكشن")
 async def setchannel_reaction(interaction: discord.Interaction):
     reaction_channels.add(interaction.channel.id)
@@ -81,26 +81,25 @@ async def removechannel(interaction: discord.Interaction):
     await interaction.response.send_message("❌ تم الإيقاف")
 
 
-# 🟢 إرسال الصورة (صح 100%)
+# 🟢 إرسال الخط (صورة كرابط)
 async def send_line(channel):
-    embed = discord.Embed()
-    embed.set_image(url=IMAGE_URL)
-    await channel.send(embed=embed)
+    await channel.send(IMAGE_URL)
 
 
-# 🟢 on_message (مستقر بدون تعقيد)
+# 🟢 منع التكرار القوي
 @client.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    key = (message.channel.id, message.author.id)
+    channel_id = message.channel.id
 
-    if key in cooldown:
+    # 🟢 قفل يمنع التكرار
+    if channel_id in active_channels:
         return
 
-    cooldown.add(key)
-    asyncio.create_task(remove_cooldown(key))
+    active_channels.add(channel_id)
+    asyncio.create_task(unlock(channel_id))
 
     # 🟢 أمر خط
     if message.content == "خط":
@@ -111,12 +110,12 @@ async def on_message(message):
         return
 
     # 🟢 بدون رياكشن
-    if message.channel.id in enabled_channels:
+    if channel_id in enabled_channels:
         await send_line(message.channel)
         return
 
     # 🟢 مع رياكشن
-    if message.channel.id in reaction_channels:
+    if channel_id in reaction_channels:
         try:
             await message.add_reaction("<a:Cloude_Rose:1495925679219277864>")
         except:
@@ -126,10 +125,10 @@ async def on_message(message):
         return
 
 
-# 🟢 cooldown بسيط
-async def remove_cooldown(key):
+# 🟢 فتح القفل بعد وقت بسيط
+async def unlock(channel_id):
     await asyncio.sleep(1)
-    cooldown.discard(key)
+    active_channels.discard(channel_id)
 
 
 client.run(TOKEN)
