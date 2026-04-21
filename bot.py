@@ -18,11 +18,11 @@ reaction_channels = set()
 
 GUILD_ID = 935959922317860934
 
-# 🟢 الخط الثابت (الرابط اللي عطيتني إياه)
+# 🟢 الخط الثابت
 LINE_TEXT = "<https://cdn.discordapp.com/attachments/1495165123789062324/1495898310765056072/Picsart_26-04-19_17-16-50-332.jpg?ex=69e7eb5d&is=69e699dd&hm=b79859a6697d61daa33d8ad9ebed0185885dc8161c37c017a48362bd0cd9b8bd>"
 
-# 🟢 منع التكرار
-cooldown = set()
+# 🟢 منع التكرار النهائي
+processed_messages = set()
 
 
 # 🟢 الحالة
@@ -93,23 +93,19 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # 🟢 أمر خط للأدمن
+    # 🟢 منع التكرار الحقيقي
+    if message.id in processed_messages:
+        return
+
+    processed_messages.add(message.id)
+
+    # 🟢 أمر خط
     if message.content == "خط":
         if message.author.guild_permissions.administrator:
             await message.channel.send(LINE_TEXT)
         else:
             await message.channel.send("🚫 ما عندك صلاحية")
         return
-
-    # 🟢 منع التكرار (حل مشكلة الإرسال 3 مرات)
-    key = message.channel.id
-
-    if key in cooldown:
-        return
-
-    cooldown.add(key)
-
-    asyncio.create_task(remove_cooldown(key))
 
     # 🟢 بدون رياكشن
     if message.channel.id in enabled_channels:
@@ -118,19 +114,13 @@ async def on_message(message):
 
     # 🟢 مع رياكشن
     if message.channel.id in reaction_channels:
-
         try:
             await message.add_reaction("<a:Cloude_Rose:1495925679219277864>")
         except:
             pass
 
         await message.channel.send(LINE_TEXT)
-
-
-# 🟢 تنظيف الكولداون
-async def remove_cooldown(key):
-    await asyncio.sleep(1)
-    cooldown.discard(key)
+        return
 
 
 client.run(TOKEN)
