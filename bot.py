@@ -16,12 +16,13 @@ client.tree = app_commands.CommandTree(client)
 enabled_channels = set()
 reaction_channels = set()
 
-current_line = None
 GUILD_ID = 935959922317860934
 
+# 🟢 الخط الثابت (الرابط اللي عطيتني إياه)
+LINE_TEXT = "<https://cdn.discordapp.com/attachments/1495165123789062324/1495898310765056072/Picsart_26-04-19_17-16-50-332.jpg?ex=69e7eb5d&is=69e699dd&hm=b79859a6697d61daa33d8ad9ebed0185885dc8161c37c017a48362bd0cd9b8bd>"
 
 # 🟢 منع التكرار
-last_sent = {}
+cooldown = set()
 
 
 # 🟢 الحالة
@@ -61,7 +62,7 @@ async def on_ready():
 async def setchannel(interaction: discord.Interaction):
     enabled_channels.add(interaction.channel.id)
     reaction_channels.discard(interaction.channel.id)
-    await interaction.response.send_message("✅ تم تفعيل الخط بدون رياكشن")
+    await interaction.response.send_message("✅ تم التفعيل بدون رياكشن")
 
 
 # 🟢 روم مع رياكشن
@@ -69,41 +70,21 @@ async def setchannel(interaction: discord.Interaction):
 async def setchannel_reaction(interaction: discord.Interaction):
     reaction_channels.add(interaction.channel.id)
     enabled_channels.discard(interaction.channel.id)
-    await interaction.response.send_message("💖 تم تفعيل الخط مع رياكشن")
+    await interaction.response.send_message("💖 تم التفعيل مع رياكشن")
 
 
 # 🟢 إيقاف
-@client.tree.command(name="removechannel", description="إيقاف الخط في هذا الروم")
+@client.tree.command(name="removechannel", description="إيقاف الخط")
 async def removechannel(interaction: discord.Interaction):
     enabled_channels.discard(interaction.channel.id)
     reaction_channels.discard(interaction.channel.id)
-    await interaction.response.send_message("❌ تم إيقاف الخط")
+    await interaction.response.send_message("❌ تم الإيقاف")
 
 
-# 🟢 إضافة خط
-@client.tree.command(name="addline", description="إضافة خط")
-async def addline(interaction: discord.Interaction, text: str):
-    global current_line
-    current_line = text
-    await interaction.response.send_message("✅ تم حفظ الخط")
-
-
-# 🟢 حذف خط
-@client.tree.command(name="reline", description="حذف الخط")
-async def reline(interaction: discord.Interaction):
-    global current_line
-    current_line = None
-    await interaction.response.send_message("♻️ تم حذف الخط")
-
-
-# 🟢 عرض خط
+# 🟢 عرض الخط
 @client.tree.command(name="line", description="عرض الخط")
 async def line(interaction: discord.Interaction):
-    if not current_line:
-        await interaction.response.send_message("❌ ما فيه خط")
-        return
-
-    await interaction.response.send_message(current_line)
+    await interaction.response.send_message(LINE_TEXT)
 
 
 # 🟢 الأحداث
@@ -112,28 +93,27 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # 🟢 أمر خط
+    # 🟢 أمر خط للأدمن
     if message.content == "خط":
         if message.author.guild_permissions.administrator:
-            if current_line:
-                await message.channel.send(current_line)
-            else:
-                await message.channel.send("❌ ما فيه خط محفوظ")
+            await message.channel.send(LINE_TEXT)
         else:
             await message.channel.send("🚫 ما عندك صلاحية")
         return
 
-    # 🟢 منع التكرار
-    key = f"{message.channel.id}-{message.content}"
+    # 🟢 منع التكرار (حل مشكلة الإرسال 3 مرات)
+    key = message.channel.id
 
-    if last_sent.get(key) == message.id:
+    if key in cooldown:
         return
 
-    last_sent[key] = message.id
+    cooldown.add(key)
+
+    asyncio.create_task(remove_cooldown(key))
 
     # 🟢 بدون رياكشن
-    if message.channel.id in enabled_channels and current_line:
-        await message.channel.send(current_line)
+    if message.channel.id in enabled_channels:
+        await message.channel.send(LINE_TEXT)
         return
 
     # 🟢 مع رياكشن
@@ -144,8 +124,13 @@ async def on_message(message):
         except:
             pass
 
-        if current_line:
-            await message.channel.send(current_line)
+        await message.channel.send(LINE_TEXT)
+
+
+# 🟢 تنظيف الكولداون
+async def remove_cooldown(key):
+    await asyncio.sleep(1)
+    cooldown.discard(key)
 
 
 client.run(TOKEN)
