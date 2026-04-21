@@ -8,7 +8,7 @@ TOKEN = os.environ["TOKEN"]
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-intents.voice_states = True  # مهم للصوت
+intents.voice_states = True
 
 client = discord.Client(intents=intents)
 client.tree = app_commands.CommandTree(client)
@@ -22,31 +22,47 @@ GUILD_ID = 935959922317860934
 # 🟢 روم الصوت
 VOICE_CHANNEL_ID = 1496124315270254703
 
-# 🟢 صورة الخط (بدون Embed)
+# 🟢 صورة الخط
 IMAGE_URL = "https://cdn.discordapp.com/attachments/1495165123789062324/1495898310765056072/Picsart_26-04-19_17-16-50-332.jpg"
 
-# 🟢 منع التكرار الحقيقي
 processed_messages = set()
 
 
-# 🟢 اتصال الصوت دائم
+# 🟢 اتصال صوتي دائم
 async def keep_voice_connected():
     await client.wait_until_ready()
+    print("Voice task started")
 
-    while not client.is_closed():
-        guild = client.get_guild(GUILD_ID)
+    while True:
+        try:
+            guild = client.get_guild(GUILD_ID)
 
-        if guild:
+            if guild is None:
+                print("Guild not found yet")
+                await asyncio.sleep(5)
+                continue
+
             channel = guild.get_channel(VOICE_CHANNEL_ID)
-            voice_client = discord.utils.get(client.voice_clients, guild=guild)
 
-            if not voice_client or not voice_client.is_connected():
+            if channel is None:
+                print("Voice channel not found")
+                await asyncio.sleep(5)
+                continue
+
+            voice_client = guild.voice_client
+
+            if voice_client is None or not voice_client.is_connected():
                 try:
-                    await channel.connect()
-                except:
-                    pass
+                    print("Connecting to voice...")
+                    await channel.connect(self_deaf=True, self_mute=True)
+                    print("Voice connected")
+                except Exception as e:
+                    print("Voice connect error:", e)
 
-        await asyncio.sleep(5)
+        except Exception as e:
+            print("Voice loop error:", e)
+
+        await asyncio.sleep(10)
 
 
 # 🟢 الحالة
@@ -76,9 +92,11 @@ async def on_ready():
     await client.tree.sync(guild=guild)
 
     print(f"Logged in as {client.user}")
+    print("STARTING VOICE TASK")
 
-    client.loop.create_task(update_status())
-    client.loop.create_task(keep_voice_connected())  # تشغيل نظام الصوت
+    # ✅ التعديل المهم هنا
+    asyncio.create_task(keep_voice_connected())
+    asyncio.create_task(update_status())
 
 
 # 🟢 أوامر التفعيل
@@ -105,7 +123,10 @@ async def removechannel(interaction: discord.Interaction):
 
 # 🟢 إرسال الخط
 async def send_line(channel):
-    await channel.send(IMAGE_URL)
+    try:
+        await channel.send(IMAGE_URL)
+    except Exception as e:
+        print("Send error:", e)
 
 
 # 🟢 on_message
