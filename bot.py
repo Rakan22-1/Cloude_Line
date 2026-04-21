@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands, Activity, ActivityType
 import asyncio
-
+import os
 TOKEN = os.environ["TOKEN"]
 
 intents = discord.Intents.default()
