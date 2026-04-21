@@ -21,8 +21,8 @@ GUILD_ID = 935959922317860934
 # 🟢 صورة الخط (بدون Embed)
 IMAGE_URL = "https://cdn.discordapp.com/attachments/1495165123789062324/1495898310765056072/Picsart_26-04-19_17-16-50-332.jpg"
 
-# 🟢 منع التكرار (قفل سريع)
-active_channels = set()
+# 🟢 منع التكرار الحقيقي
+processed_messages = set()
 
 
 # 🟢 الحالة
@@ -34,7 +34,6 @@ async def update_status():
 
         if guild:
             members = guild.member_count
-
             await client.change_presence(
                 activity=Activity(
                     type=ActivityType.playing,
@@ -57,49 +56,44 @@ async def on_ready():
     client.loop.create_task(update_status())
 
 
-# 🟢 بدون رياكشن
-@client.tree.command(name="setchannel", description="تفعيل الخط بدون رياكشن")
+# 🟢 أوامر التفعيل
+@client.tree.command(name="setchannel", description="تفعيل بدون رياكشن")
 async def setchannel(interaction: discord.Interaction):
     enabled_channels.add(interaction.channel.id)
     reaction_channels.discard(interaction.channel.id)
     await interaction.response.send_message("✅ تم التفعيل بدون رياكشن")
 
 
-# 🟢 مع رياكشن
-@client.tree.command(name="setchannel_reaction", description="تفعيل الخط مع رياكشن")
+@client.tree.command(name="setchannel_reaction", description="تفعيل مع رياكشن")
 async def setchannel_reaction(interaction: discord.Interaction):
     reaction_channels.add(interaction.channel.id)
     enabled_channels.discard(interaction.channel.id)
     await interaction.response.send_message("💖 تم التفعيل مع رياكشن")
 
 
-# 🟢 إيقاف
-@client.tree.command(name="removechannel", description="إيقاف الخط")
+@client.tree.command(name="removechannel", description="إيقاف")
 async def removechannel(interaction: discord.Interaction):
     enabled_channels.discard(interaction.channel.id)
     reaction_channels.discard(interaction.channel.id)
     await interaction.response.send_message("❌ تم الإيقاف")
 
 
-# 🟢 إرسال الخط (صورة كرابط)
+# 🟢 إرسال الخط
 async def send_line(channel):
     await channel.send(IMAGE_URL)
 
 
-# 🟢 منع التكرار القوي
+# 🟢 on_message (حل نهائي للتكرار + ترتيب صحيح للرياكشن)
 @client.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    channel_id = message.channel.id
-
-    # 🟢 قفل يمنع التكرار
-    if channel_id in active_channels:
+    # 🟢 منع التكرار (كل رسالة مرة وحدة فقط)
+    if message.id in processed_messages:
         return
 
-    active_channels.add(channel_id)
-    asyncio.create_task(unlock(channel_id))
+    processed_messages.add(message.id)
 
     # 🟢 أمر خط
     if message.content == "خط":
@@ -110,12 +104,12 @@ async def on_message(message):
         return
 
     # 🟢 بدون رياكشن
-    if channel_id in enabled_channels:
+    if message.channel.id in enabled_channels:
         await send_line(message.channel)
         return
 
-    # 🟢 مع رياكشن
-    if channel_id in reaction_channels:
+    # 🟢 مع رياكشن (على رسالة المستخدم فقط)
+    if message.channel.id in reaction_channels:
         try:
             await message.add_reaction("<a:Cloude_Rose:1495925679219277864>")
         except:
@@ -123,12 +117,6 @@ async def on_message(message):
 
         await send_line(message.channel)
         return
-
-
-# 🟢 فتح القفل بعد وقت بسيط
-async def unlock(channel_id):
-    await asyncio.sleep(1)
-    active_channels.discard(channel_id)
 
 
 client.run(TOKEN)
