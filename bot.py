@@ -8,6 +8,7 @@ TOKEN = os.environ["TOKEN"]
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
+intents.voice_states = True  # مهم للصوت
 
 client = discord.Client(intents=intents)
 client.tree = app_commands.CommandTree(client)
@@ -18,11 +19,34 @@ reaction_channels = set()
 
 GUILD_ID = 935959922317860934
 
+# 🟢 روم الصوت
+VOICE_CHANNEL_ID = 1496124315270254703
+
 # 🟢 صورة الخط (بدون Embed)
 IMAGE_URL = "https://cdn.discordapp.com/attachments/1495165123789062324/1495898310765056072/Picsart_26-04-19_17-16-50-332.jpg"
 
 # 🟢 منع التكرار الحقيقي
 processed_messages = set()
+
+
+# 🟢 اتصال الصوت دائم
+async def keep_voice_connected():
+    await client.wait_until_ready()
+
+    while not client.is_closed():
+        guild = client.get_guild(GUILD_ID)
+
+        if guild:
+            channel = guild.get_channel(VOICE_CHANNEL_ID)
+            voice_client = discord.utils.get(client.voice_clients, guild=guild)
+
+            if not voice_client or not voice_client.is_connected():
+                try:
+                    await channel.connect()
+                except:
+                    pass
+
+        await asyncio.sleep(5)
 
 
 # 🟢 الحالة
@@ -54,6 +78,7 @@ async def on_ready():
     print(f"Logged in as {client.user}")
 
     client.loop.create_task(update_status())
+    client.loop.create_task(keep_voice_connected())  # تشغيل نظام الصوت
 
 
 # 🟢 أوامر التفعيل
@@ -83,19 +108,17 @@ async def send_line(channel):
     await channel.send(IMAGE_URL)
 
 
-# 🟢 on_message (حل نهائي للتكرار + ترتيب صحيح للرياكشن)
+# 🟢 on_message
 @client.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    # 🟢 منع التكرار (كل رسالة مرة وحدة فقط)
     if message.id in processed_messages:
         return
 
     processed_messages.add(message.id)
 
-    # 🟢 أمر خط
     if message.content == "خط":
         if message.author.guild_permissions.administrator:
             await send_line(message.channel)
@@ -103,12 +126,10 @@ async def on_message(message):
             await message.channel.send("🚫 ما عندك صلاحية")
         return
 
-    # 🟢 بدون رياكشن
     if message.channel.id in enabled_channels:
         await send_line(message.channel)
         return
 
-    # 🟢 مع رياكشن (على رسالة المستخدم فقط)
     if message.channel.id in reaction_channels:
         try:
             await message.add_reaction("<a:Cloude_Rose:1495925679219277864>")
