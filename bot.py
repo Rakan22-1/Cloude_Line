@@ -18,11 +18,11 @@ reaction_channels = set()
 
 GUILD_ID = 935959922317860934
 
-# 🟢 الخط الثابت
-LINE_TEXT = "<https://cdn.discordapp.com/attachments/1495165123789062324/1495898310765056072/Picsart_26-04-19_17-16-50-332.jpg?ex=69e7eb5d&is=69e699dd&hm=b79859a6697d61daa33d8ad9ebed0185885dc8161c37c017a48362bd0cd9b8bd>"
+# 🟢 منع التكرار (قفل قوي)
+last_trigger = {}
 
-# 🟢 منع التكرار الحقيقي
-processed_messages = set()
+# 🟢 الصورة الثابتة
+IMAGE_URL = "https://cdn.discordapp.com/attachments/1495165123789062324/1495898310765056072/Picsart_26-04-19_17-16-50-332.jpg?ex=69e7eb5d&is=69e699dd&hm=b79859a6697d61daa33d8ad9ebed0185885dc8161c37c017a48362bd0cd9b8bd"
 
 
 # 🟢 الحالة
@@ -81,35 +81,41 @@ async def removechannel(interaction: discord.Interaction):
     await interaction.response.send_message("❌ تم الإيقاف")
 
 
-# 🟢 عرض الخط
+# 🟢 عرض الخط (صورة)
 @client.tree.command(name="line", description="عرض الخط")
 async def line(interaction: discord.Interaction):
-    await interaction.response.send_message(LINE_TEXT)
+
+    embed = discord.Embed()
+    embed.set_image(url=IMAGE_URL)
+
+    await interaction.response.send_message(embed=embed)
 
 
-# 🟢 الأحداث
+# 🟢 منع التكرار القوي
 @client.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    # 🟢 منع التكرار النهائي (أقوى حل)
-    if message.id in processed_messages:
+    key = message.channel.id
+
+    if key in last_trigger:
         return
 
-    processed_messages.add(message.id)
+    last_trigger[key] = True
+    asyncio.create_task(remove_lock(key))
 
     # 🟢 أمر خط
     if message.content == "خط":
         if message.author.guild_permissions.administrator:
-            await message.channel.send(LINE_TEXT)
+            await send_line(message.channel)
         else:
             await message.channel.send("🚫 ما عندك صلاحية")
         return
 
     # 🟢 بدون رياكشن
     if message.channel.id in enabled_channels:
-        await message.channel.send(LINE_TEXT)
+        await send_line(message.channel)
         return
 
     # 🟢 مع رياكشن
@@ -119,8 +125,21 @@ async def on_message(message):
         except:
             pass
 
-        await message.channel.send(LINE_TEXT)
+        await send_line(message.channel)
         return
+
+
+# 🟢 إرسال الخط (Embed)
+async def send_line(channel):
+    embed = discord.Embed()
+    embed.set_image(url=IMAGE_URL)
+    await channel.send(embed=embed)
+
+
+# 🟢 فك القفل
+async def remove_lock(key):
+    await asyncio.sleep(1)
+    last_trigger.pop(key, None)
 
 
 client.run(TOKEN)
