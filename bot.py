@@ -14,12 +14,12 @@ intents.voice_states = True
 client = discord.Client(intents=intents)
 client.tree = app_commands.CommandTree(client)
 
-# 🧠 بيانات القنوات (تتحفظ بعد الريستارت)
+# 🧠 تخزين القنوات
 DATA_FILE = "channels.json"
 enabled_channels = set()
 reaction_channels = set()
 
-# 🟢 إعدادات
+# 🟢 إعدادات السيرفر
 GUILD_ID = 935959922317860934
 VOICE_CHANNEL_ID = 1496124315270254703
 
@@ -28,7 +28,7 @@ IMAGE_URL = "https://cdn.discordapp.com/attachments/1495165123789062324/14958983
 processed_messages = set()
 
 
-# 💾 حفظ + تحميل البيانات
+# 💾 حفظ / تحميل
 def load_data():
     global enabled_channels, reaction_channels
     try:
@@ -112,11 +112,20 @@ async def on_ready():
     print(f"Logged in as {client.user}")
     print("STARTING BOT...")
 
+    guild = discord.Object(id=GUILD_ID)
+
+    try:
+        client.tree.copy_global_to(guild=guild)
+        await client.tree.sync(guild=guild)
+        print("Slash commands synced")
+    except Exception as e:
+        print("Sync error:", e)
+
     asyncio.create_task(keep_voice_connected())
     asyncio.create_task(update_status())
 
 
-# 🧾 إرسال الخط
+# 🧾 الخط
 async def send_line(channel):
     try:
         await channel.send(IMAGE_URL)
@@ -140,21 +149,21 @@ async def on_message(message):
 
 
 # 🟢 أوامر السلاش
-@client.tree.command(name="setchannel")
+@client.tree.command(name="setchannel", description="تفعيل بدون رياكشن")
 async def setchannel(interaction: discord.Interaction):
     enabled_channels.add(interaction.channel.id)
     save_data()
     await interaction.response.send_message("✅ تم التفعيل بدون رياكشن")
 
 
-@client.tree.command(name="setchannel_reaction")
+@client.tree.command(name="setchannel_reaction", description="تفعيل مع رياكشن")
 async def setchannel_reaction(interaction: discord.Interaction):
     reaction_channels.add(interaction.channel.id)
     save_data()
     await interaction.response.send_message("💖 تم التفعيل مع رياكشن")
 
 
-@client.tree.command(name="removechannel")
+@client.tree.command(name="removechannel", description="إيقاف")
 async def removechannel(interaction: discord.Interaction):
     enabled_channels.discard(interaction.channel.id)
     reaction_channels.discard(interaction.channel.id)
@@ -162,5 +171,5 @@ async def removechannel(interaction: discord.Interaction):
     await interaction.response.send_message("❌ تم الإيقاف")
 
 
-# 🔥 تشغيل البوت
+# 🔥 تشغيل
 client.run(TOKEN)
