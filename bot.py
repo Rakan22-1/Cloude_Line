@@ -2,6 +2,7 @@ import discord
 from discord import app_commands, Activity, ActivityType
 import asyncio
 import os
+
 TOKEN = os.environ["TOKEN"]
 
 intents = discord.Intents.default()
@@ -11,17 +12,19 @@ intents.members = True
 client = discord.Client(intents=intents)
 client.tree = app_commands.CommandTree(client)
 
-# 🟢 رومات بدون رياكشن
+# 🟢 الرومات
 enabled_channels = set()
-
-# 🟢 رومات مع رياكشن
 reaction_channels = set()
 
 current_line = None
 GUILD_ID = 935959922317860934
 
 
-# 🟢 تحديث الحالة
+# 🟢 منع التكرار
+last_sent = {}
+
+
+# 🟢 الحالة
 async def update_status():
     await client.wait_until_ready()
 
@@ -69,7 +72,7 @@ async def setchannel_reaction(interaction: discord.Interaction):
     await interaction.response.send_message("💖 تم تفعيل الخط مع رياكشن")
 
 
-# 🟢 إيقاف الروم
+# 🟢 إيقاف
 @client.tree.command(name="removechannel", description="إيقاف الخط في هذا الروم")
 async def removechannel(interaction: discord.Interaction):
     enabled_channels.discard(interaction.channel.id)
@@ -79,7 +82,6 @@ async def removechannel(interaction: discord.Interaction):
 
 # 🟢 إضافة خط
 @client.tree.command(name="addline", description="إضافة خط")
-@app_commands.describe(text="النص")
 async def addline(interaction: discord.Interaction, text: str):
     global current_line
     current_line = text
@@ -94,7 +96,7 @@ async def reline(interaction: discord.Interaction):
     await interaction.response.send_message("♻️ تم حذف الخط")
 
 
-# 🟢 عرض الخط
+# 🟢 عرض خط
 @client.tree.command(name="line", description="عرض الخط")
 async def line(interaction: discord.Interaction):
     if not current_line:
@@ -110,7 +112,7 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # 🟢 أمر خط للأدمن
+    # 🟢 أمر خط
     if message.content == "خط":
         if message.author.guild_permissions.administrator:
             if current_line:
@@ -121,10 +123,18 @@ async def on_message(message):
             await message.channel.send("🚫 ما عندك صلاحية")
         return
 
+    # 🟢 منع التكرار
+    key = f"{message.channel.id}-{message.content}"
+
+    if last_sent.get(key) == message.id:
+        return
+
+    last_sent[key] = message.id
+
     # 🟢 بدون رياكشن
-    if message.channel.id in enabled_channels:
-        if current_line:
-            await message.channel.send(current_line)
+    if message.channel.id in enabled_channels and current_line:
+        await message.channel.send(current_line)
+        return
 
     # 🟢 مع رياكشن
     if message.channel.id in reaction_channels:
